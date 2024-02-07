@@ -203,5 +203,8 @@ public:
 
     /// @brief automatic whole platoon lane change
     bool autoLaneChange;
+
+    /// @brief whole platoon lane change (not automatic). -1 indicates no need to change lane (mechanism disabled)
+    int platoonFixedLane;
 };
 
