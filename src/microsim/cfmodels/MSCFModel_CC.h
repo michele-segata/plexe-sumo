@@ -261,6 +261,10 @@ public:
      */
     int getMyLanesCount() const;
 
+    void commitLaneChange(MSVehicle *veh, SUMOTime timestep, bool commit) const;
+
+    bool shouldCommitLaneChange(MSVehicle *veh, SUMOTime timestep) const;
+
 private:
 
     /**

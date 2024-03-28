@@ -32,6 +32,7 @@
 #include "MSVehicleTransfer.h"
 #include "MSStop.h"
 #include "MSGlobals.h"
+#include "microsim/cfmodels/MSCFModel_CC.h"
 #include <cassert>
 #include <iterator>
 #include <cstdlib>
@@ -1057,6 +1058,25 @@ MSLaneChanger::checkChange(
                   << "\n";
     }
 #endif
+
+    if (state & LCA_WANTS_LANECHANGE && blocked == 0) {
+        auto *cfm = dynamic_cast<const MSCFModel_CC *>(&vehicle->getCarFollowModel());
+
+        if (cfm) {
+            bool shouldCommit = true;
+            if (cfm->isLeader(vehicle)) {
+                bool left = (state & LCA_LEFT) != 0;
+                bool isStillSafe = cfm->isPlatoonLaneChangeSafe(vehicle, left);
+                cfm->commitLaneChange(vehicle, MSNet::getInstance()->getCurrentTimeStep(), isStillSafe);
+            } else
+                shouldCommit = cfm->shouldCommitLaneChange(vehicle, MSNet::getInstance()->getCurrentTimeStep());
+
+            if (!shouldCommit) {
+                blocked = blockedByLeader;
+                state |= blocked;
+            }
+        }
+    }
     vehicle->getLaneChangeModel().saveLCState(laneOffset, oldstate, state);
     if (blocked == 0 && (state & LCA_WANTS_LANECHANGE)) {
         // this lane change will be executed, save gaps

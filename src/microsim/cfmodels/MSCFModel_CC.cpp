@@ -1145,3 +1145,26 @@ MSCFModel_CC::isLeader(const MSVehicle *veh) const {
     // TODO: this condition might not be enough
     return vars->activeController == Plexe::ACC;
 }
+
+void
+MSCFModel_CC::commitLaneChange(MSVehicle *veh, SUMOTime timestep, bool commit) const {
+    auto vars = (CC_VehicleVariables*)veh->getCarFollowVariables();
+    if (!isLeader(veh))
+        throw libsumo::TraCIException("Lane change model requested commit to lane change, but " + veh->getID() + " is not a leader");
+    vars->commitToLaneChange = commit;
+    vars->laneChangeCommitTime = timestep;
+}
+
+bool
+MSCFModel_CC::shouldCommitLaneChange(MSVehicle *veh, SUMOTime timestep) const {
+    auto vars = (CC_VehicleVariables*)veh->getCarFollowVariables();
+    if (isLeader(veh)) {
+        if (vars->laneChangeCommitTime == timestep)
+            return vars->commitToLaneChange;
+        else
+            return false;
+    }
+    else {
+        return shouldCommitLaneChange(vars->leaderVehicle, timestep);
+    }
+}

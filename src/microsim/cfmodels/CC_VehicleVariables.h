@@ -206,5 +206,11 @@ public:
 
     /// @brief whole platoon lane change (not automatic). -1 indicates no need to change lane (mechanism disabled)
     int platoonFixedLane;
+
+    /// @brief when followers asks whether to actually change lane or not, what should the leader tell them?
+    bool commitToLaneChange;
+
+    /// @brief timestep for which the above commit is valid
+    SUMOTime laneChangeCommitTime;
 };
 
