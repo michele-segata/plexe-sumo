@@ -114,9 +114,10 @@ MSCFModel_CC::setLeader(MSVehicle* veh, MSVehicle* const leader) const {
     vars->leaderVehicle = leader;
 }
 
-bool
-MSCFModel_CC::isPlatoonLaneChangeSafe(MSVehicle* const veh, bool left) const {
+int
+MSCFModel_CC::isPlatoonLaneChangeSafe(const MSVehicle* veh, bool left) const {
     CC_VehicleVariables* vars = (CC_VehicleVariables*) veh->getCarFollowVariables();
+    int result = 0;
     std::pair<int, int> state = libsumo::Vehicle::getLaneChangeState(veh->getID(), left ? +1 : -1);
     // bit 1: query lateral direction (left:0, right:1)
     // bit 2: query longitudinal direction (followers:0, leaders:1)
@@ -131,14 +132,32 @@ MSCFModel_CC::isPlatoonLaneChangeSafe(MSVehicle* const veh, bool left) const {
             followers = libsumo::Vehicle::getNeighbors(m->second, left ? 0b100 : 0b101);
             leaders = libsumo::Vehicle::getNeighbors(m->second, left ? 0b110 : 0b111);
             noNeighbors = followers.empty() && leaders.empty();
-            if (mState.second & LCA_BLOCKED || !noNeighbors)
-                return false;
+            if (mState.second & LCA_BLOCKED || !noNeighbors) {
+                if (mState.second & LCA_BLOCKED) {
+                    result = mState.second;
+                }
+                else {
+                    if (!followers.empty())
+                        result |= left ? LCA_BLOCKED_BY_LEFT_FOLLOWER : LCA_BLOCKED_BY_RIGHT_FOLLOWER;
+                    if (!leaders.empty())
+                        result |= left ? LCA_BLOCKED_BY_LEFT_LEADER : LCA_BLOCKED_BY_RIGHT_LEADER;
+                }
+                break;
+            }
         }
     }
     else {
-        return false;
+        if (state.second & LCA_BLOCKED) {
+            result = state.second;
+        }
+        else {
+            if (!followers.empty())
+                result |= left ? LCA_BLOCKED_BY_LEFT_FOLLOWER : LCA_BLOCKED_BY_RIGHT_FOLLOWER;
+            if (!leaders.empty())
+                result |= left ? LCA_BLOCKED_BY_LEFT_LEADER : LCA_BLOCKED_BY_RIGHT_LEADER;
+        }
     }
-    return true;
+    return result;
 }
 
 void
@@ -157,7 +176,7 @@ MSCFModel_CC::performAutoLaneChange(MSVehicle* const veh) const {
     int traciState = state.first;
     if (traciState & LCA_LEFT && traciState & LCA_SPEEDGAIN) {
         // we can gain by moving left. check that all vehicles can move left
-        if (isPlatoonLaneChangeSafe(veh, true))
+        if (isPlatoonLaneChangeSafe(veh, true) == 0)
             changeWholePlatoonLane(veh, +1);
     }
     // check for right lane change
@@ -165,7 +184,7 @@ MSCFModel_CC::performAutoLaneChange(MSVehicle* const veh) const {
     traciState = state.first;
     if (traciState & LCA_RIGHT && traciState & LCA_KEEPRIGHT) {
         // we should move back right. check that all vehicles can move right
-        if (isPlatoonLaneChangeSafe(veh, false))
+        if (isPlatoonLaneChangeSafe(veh, false) == 0)
             changeWholePlatoonLane(veh, -1);
     }
 }
@@ -180,7 +199,7 @@ MSCFModel_CC::performPlatoonLaneChange(MSVehicle* const veh) const {
         return;
     }
     bool left = currentLane < vars->platoonFixedLane;
-    if (isPlatoonLaneChangeSafe(veh, left))
+    if (isPlatoonLaneChangeSafe(veh, left) == 0)
         changeWholePlatoonLane(veh, left ? +1 : -1);
 }
 
